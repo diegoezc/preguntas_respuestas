@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Preguntas y Respuestas</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <h1>Juego de Preguntas y Respuestas</h1>
+        <div>
+            <button id="voice-btn">🎤 Grabar Pregunta</button>
+            <input type="text" id="text-input" placeholder="O escribe tu pregunta">
+            <button id="send-btn">Enviar</button>
+        </div>
+        <div id="response">
+            <h2>Respuesta:</h2>
+            <audio id="response-audio" controls></audio>
+            <p id="transcription"></p>
+        </div>
+        <div id="history">
+            <h2>Historial</h2>
+            <ul id="history-list"></ul>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
