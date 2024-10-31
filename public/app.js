@@ -76,7 +76,7 @@ function handleResponse(data) {
 
     // Si hay un archivo de audio, actualizamos la etiqueta <audio>
     if (data.audio) {
-        responseAudio.src = `data:audio/wav;base64,${data.audio}`;
+        responseAudio.src = `data:audio/mp3;base64,${data.audio}`;
         responseAudio.play();
     }
 
@@ -90,7 +90,7 @@ socket.addEventListener('open', () => {
 
 socket.addEventListener('message', (event) => {
     const data = JSON.parse(event.data);
-
+    console.log(data)
     if (data.type === 'text') {
         // Mostrar la transcripción
         if (data.transcription && data.transcription !== 'Sin respuesta') {
@@ -103,9 +103,23 @@ socket.addEventListener('message', (event) => {
         }
     } else if (data.type === 'audio') {
         // Reproducir el audio recibido en base64
+        console.log('audio if ')
         if (data.audio) {
-            responseAudio.src = `data:audio/wav;base64,${data.audio}`;
-            responseAudio.play();
+            
+            // Reproducir el audio recibido en base64
+            try {
+                // Detecta si el audio es MP3 o WAV según el prefijo MIME (asegúrate de que está en el formato correcto)
+                const audioFormat = "audio/mp3"; // Simple check for WAV or MP3
+                responseAudio.src = `data:${audioFormat};base64,${data.audio}`;
+
+                responseAudio.play()
+                .then(() => console.log("Audio reproduciéndose"))
+                .catch(error => console.error("Error al reproducir el audio:", error));
+
+
+            } catch (error) {
+                console.error("Error en el procesamiento de audio:", error);
+        }
         }
     } else {
         console.log('Otro tipo de mensaje:', data);

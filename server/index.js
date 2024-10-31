@@ -2,6 +2,7 @@ const express = require('express');
 const WebSocket = require('ws');
 const bodyParser = require('body-parser');
 const http = require('http');
+const WavEncoder = require('wav-encoder');
 
 require('dotenv').config();
 
@@ -9,7 +10,12 @@ const app = express();
 const port = 3000;
 
 app.use(express.static('public'));
-app.use(bodyParser.json());
+app.use(bodyParser.json({
+    limit:'10mb'
+}));
+app.use(bodyParser.urlencoded({
+    limit:'10mb', extended:true
+}))
 
 const server = new WebSocket.Server({ port: 8080 });
 
@@ -44,26 +50,7 @@ function connectToOpenAI() {
         console.log('Conexión establecida con la API Realtime de OpenAI');
     });
 
-    ws.on('message', (data) => {
-        try {
-            const event = JSON.parse(data);
-            const transcript = event.response?.output[0]?.transcript || 'Sin respuesta';
 
-            console.log('Respuesta del servidor:', transcript);
-
-            server.clients.forEach(client => {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify({
-                        type: 'audio',
-                        transcription: transcript
-                    }));
-                }
-            });
-    
-        } catch (error) {
-            console.error('Error al procesar el mensaje:', error);
-        }
-    });
 
     ws.on('error', (error) => {
         console.error('Error en la conexión con la API:', error);
@@ -103,10 +90,12 @@ app.post('/send-audio', async (req, res) => {
     const responseCreateAudio = {
         type: "response.create",
         response: {
-            modalities: ["text", "audio"],
+            modalities: ["audio","text"],
             instructions: "Respond as Marcuss, assisting with real-time game questions in Spanish, switching languages if requested.",
             voice: "alloy",
             output_audio_format: "pcm16",
+            tool_choice: "auto",
+            
         }
     };
     ws.send(JSON.stringify(responseCreateAudio));
@@ -150,16 +139,28 @@ app.post('/send-text', async (req, res) => {
     res.json({ status: 'Message sent, awaiting AI response' });
 });
 
-ws.on('message', (data) => {
+
+async function pcm16ToWavBase64(pcmData) {
+    const float32Data = new Float32Array(pcmData.buffer);
+
+    const wavData = await WavEncoder.encode({
+        sampleRate: 16000, 
+        channelData: [float32Data] 
+    });
+
+    return Buffer.from(wavData).toString('base64');
+}
+ws.on('message',  (data) => {
     try {
         const response = JSON.parse(data);
         console.log('Mensaje completo recibido:', response);
 
         // Verificar si el mensaje contiene un delta de audio
-        if (response.type === 'response_audio.delta' && response.delta) {
-            const base64Audio = response.delta;
-
-            // Enviar el audio en base64 a todos los clientes conectados
+        if (response.type === 'response.audio.delta' && response.delta) {
+            const pcmBuffer = Buffer.from(response.delta, 'binary');
+            
+          pcm16ToWavBase64(pcmBuffer).then(base64Audio=>{
+                 // Enviar el audio en base64 a todos los clientes conectados
             server.clients.forEach(client => {
                 if (client.readyState === WebSocket.OPEN) {
                     client.send(JSON.stringify({
@@ -168,6 +169,10 @@ ws.on('message', (data) => {
                     }));
                 }
             });
+          });
+
+
+           
         }
 
         // También manejamos la transcripción de texto
